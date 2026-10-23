@@ -1,91 +1,25 @@
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { loadUser } from './features/auth/authSlice';
+import { BrowserRouter } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
+import Home from './components/Home';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import EmployeeDashboard from './pages/EmployeeDashboard';
+import HrDashboard from './pages/HrDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import ProtectedRoute from './routes/ProtectedRoute';
 
-// Layouts & Guardrails
-import DashboardLayout from './layouts/DashboardLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-
-// Pages
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import SetupAdminPage from './pages/SetupAdminPage';
-import DashboardPage from './pages/DashboardPage';
-import EmployeesPage from './pages/EmployeesPage';
-import ManagersPage from './pages/ManagersPage';
-import AttendancePage from './pages/AttendancePage';
-import LeavesPage from './pages/LeavesPage';
-import AnnouncementsPage from './pages/AnnouncementsPage';
-import TrainingsPage from './pages/TrainingsPage';
-import PerformancePage from './pages/PerformancePage';
-import ProfilePage from './pages/ProfilePage';
-import NotFoundPage from './pages/NotFoundPage';
-
-function App() {
-  const dispatch = useDispatch();
-  const { token } = useSelector((state) => state.auth);
-
-  useEffect(() => {
-    if (token) {
-      dispatch(loadUser());
-    }
-  }, [dispatch, token]);
-
-  return (
+const App = () => (
+  <BrowserRouter>
     <Routes>
-      {/* Public Authentication Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/setup-admin" element={<SetupAdminPage />} />
-
-      {/* Protected Dashboard Routes */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-
-        {/* Directory & Teams */}
-        <Route
-          path="employees"
-          element={
-            <ProtectedRoute allowedRoles={['hr', 'manager']}>
-              <EmployeesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="managers"
-          element={
-            <ProtectedRoute allowedRoles={['hr']}>
-              <ManagersPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Operations */}
-        <Route path="attendance" element={<AttendancePage />} />
-        <Route path="leaves" element={<LeavesPage />} />
-
-        {/* Company & Growth */}
-        <Route path="announcements" element={<AnnouncementsPage />} />
-        <Route path="trainings" element={<TrainingsPage />} />
-        <Route path="performance" element={<PerformancePage />} />
-
-        {/* Account Profile */}
-        <Route path="profile" element={<ProfilePage />} />
-      </Route>
-
-      {/* 404 Route */}
-      <Route path="*" element={<NotFoundPage />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/employee-portal" element={<ProtectedRoute roles={['employee']}><EmployeeDashboard /></ProtectedRoute>} />
+      <Route path="/hr-portal" element={<ProtectedRoute roles={['hr']}><HrDashboard /></ProtectedRoute>} />
+      <Route path="/manager-portal" element={<ProtectedRoute roles={['manager']}><ManagerDashboard /></ProtectedRoute>} />
+      <Route path="*" element={<Home />} />
     </Routes>
-  );
-}
+  </BrowserRouter>
+);
 
 export default App;

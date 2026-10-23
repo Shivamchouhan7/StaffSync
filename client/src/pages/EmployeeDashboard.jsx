@@ -1,355 +1,172 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { dashboardService, attendanceService } from '../services/api';
-import StatCard from '../components/StatCard';
-import LoadingSpinner from '../components/LoadingSpinner';
-import EmptyState from '../components/EmptyState';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  CalendarCheck,
-  CalendarOff,
-  Clock,
-  Megaphone,
-  GraduationCap,
-  Award,
-  ArrowRight,
-  LogIn,
-  LogOut,
-  CheckCircle,
-  AlertCircle,
-} from 'lucide-react';
+  announcementService,
+  attendanceService,
+  authService,
+  leaveService,
+  trainingService,
+} from '../services/api';
+import Announcements from '../components/employee/Announcements';
+import Attendance from '../components/employee/Attendance';
+import LeaveApply from '../components/employee/LeaveApply';
+import LeaveList from '../components/employee/LeaveList';
 
 const EmployeeDashboard = () => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [feedback, setFeedback] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  const fetchEmployeeData = async () => {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('announcements');
+  const [user, setUser] = useState(() => {
     try {
-      const res = await dashboardService.getEmployeeStats();
-      setData(res.data);
-    } catch (err) {
-      console.error('Failed to load employee dashboard:', err);
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  });
+  const [profile, setProfile] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [trainings, setTrainings] = useState([]);
+  const [leaves, setLeaves] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [todayAttendance, setTodayAttendance] = useState(null);
+  const [leaveForm, setLeaveForm] = useState({ startDate: '', endDate: '', reason: '' });
+  const [feedback, setFeedback] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const showFeedback = (message) => {
+    setFeedback(message);
+    window.setTimeout(() => setFeedback(''), 3500);
+  };
+
+  const loadProfile = async () => {
+    const response = await authService.getMe();
+    setUser(response.data.user);
+    setProfile(response.data.profile);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+  };
+
+  const loadPortalData = async () => {
+    const [announcementResponse, trainingResponse, leaveResponse, attendanceResponse] =
+      await Promise.all([
+        announcementService.getAll(),
+        trainingService.getAll(),
+        leaveService.getMyLeaves(),
+        attendanceService.getMyAttendance(),
+      ]);
+    setAnnouncements(announcementResponse.data.data || []);
+    setTrainings(trainingResponse.data.data || []);
+    setLeaves(leaveResponse.data.data || []);
+    setAttendance(attendanceResponse.data.data || []);
+    setTodayAttendance(attendanceResponse.data.today || null);
+  };
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    Promise.all([loadProfile(), loadPortalData()]).catch((error) => {
+      showFeedback(error.response?.data?.message || 'Unable to load your portal data.');
+    });
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login', { replace: true });
+  };
+
+  const handleLeaveSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await leaveService.apply({ ...leaveForm, leaveType: 'annual' });
+      setLeaveForm({ startDate: '', endDate: '', reason: '' });
+      setLeaves((await leaveService.getMyLeaves()).data.data || []);
+      showFeedback('Leave application submitted successfully.');
+    } catch (error) {
+      showFeedback(error.response?.data?.message || 'Unable to apply for leave.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchEmployeeData();
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleCheckIn = async () => {
-    setActionLoading(true);
+  const handleAttendance = async (action) => {
+    setLoading(true);
     try {
-      const res = await attendanceService.checkIn({ notes });
-      setFeedback({ type: 'success', message: res.data.message || 'Checked in successfully!' });
-      setNotes('');
-      fetchEmployeeData();
-    } catch (err) {
-      setFeedback({
-        type: 'danger',
-        message: err.response?.data?.message || 'Check-in failed.',
-      });
+      const response =
+        action === 'checkIn'
+          ? await attendanceService.checkIn()
+          : await attendanceService.checkOut();
+      const attendanceResponse = await attendanceService.getMyAttendance();
+      setAttendance(attendanceResponse.data.data || []);
+      setTodayAttendance(attendanceResponse.data.today || null);
+      showFeedback(response.data.message);
+    } catch (error) {
+      showFeedback(error.response?.data?.message || 'Unable to update attendance.');
     } finally {
-      setActionLoading(false);
-      setTimeout(() => setFeedback(null), 5000);
+      setLoading(false);
     }
   };
-
-  const handleCheckOut = async () => {
-    setActionLoading(true);
-    try {
-      const res = await attendanceService.checkOut({ notes });
-      setFeedback({ type: 'success', message: res.data.message || 'Checked out successfully!' });
-      setNotes('');
-      fetchEmployeeData();
-    } catch (err) {
-      setFeedback({
-        type: 'danger',
-        message: err.response?.data?.message || 'Check-out failed.',
-      });
-    } finally {
-      setActionLoading(false);
-      setTimeout(() => setFeedback(null), 5000);
-    }
-  };
-
-  if (loading) {
-    return <LoadingSpinner message="Loading employee workspace..." />;
-  }
-
-  const todayAttendance = data?.todayAttendance;
-  const isCheckedIn = !!todayAttendance;
-  const isCheckedOut = !!(todayAttendance && todayAttendance.checkOut);
-  const stats = data?.stats || {};
 
   return (
-    <div className="fade-in">
-      {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
-        <div>
-          <h3 className="fw-bold text-dark mb-1">My Workplace Dashboard</h3>
-          <p className="text-muted small mb-0">
-            Log workday attendance, submit leave applications, and view training enrollments
-          </p>
-        </div>
-        <div className="d-flex gap-2">
-          <Link to="/leaves" className="btn btn-primary btn-sm d-flex align-items-center gap-1">
-            <CalendarOff size={16} /> Apply for Leave
-          </Link>
-        </div>
-      </div>
-
-      {feedback && (
-        <div className={`alert alert-${feedback.type} py-2 px-3 small rounded-3 mb-4`}>
-          {feedback.message}
-        </div>
-      )}
-
-      {/* Top Section: Today's Attendance Punch Card & Stats */}
-      <div className="row g-4 mb-4">
-        {/* Attendance Punch Box */}
-        <div className="col-lg-6">
-          <div className="saas-card h-100 border-primary-subtle">
-            <div className="saas-card-header bg-primary-subtle border-primary-subtle">
-              <div className="d-flex align-items-center gap-2 text-primary fw-bold">
-                <Clock size={18} />
-                <span>Today's Workday Attendance</span>
-              </div>
-              <span className="badge bg-white text-primary border small font-monospace">
-                {currentTime.toLocaleDateString()}
-              </span>
-            </div>
-
-            <div className="saas-card-body text-center py-4">
-              <h2 className="display-6 fw-bold text-dark mb-1 font-monospace">
-                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </h2>
-              <p className="text-muted small mb-4">Server timestamp verified • Standard shift 09:00 AM</p>
-
-              {isCheckedIn && (
-                <div className="p-3 bg-light rounded-3 mb-3 text-start small">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Checked in at:</span>
-                    <strong className="text-success font-monospace">
-                      {new Date(todayAttendance.checkIn).toLocaleTimeString()}
-                    </strong>
-                  </div>
-                  {isCheckedOut && (
-                    <>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Checked out at:</span>
-                        <strong className="text-primary font-monospace">
-                          {new Date(todayAttendance.checkOut).toLocaleTimeString()}
-                        </strong>
-                      </div>
-                      <div className="d-flex justify-content-between">
-                        <span className="text-muted">Total work hours:</span>
-                        <strong className="text-dark">{todayAttendance.workHours} hrs</strong>
-                      </div>
-                    </>
-                  )}
-                  {todayAttendance.status === 'late' && (
-                    <div className="text-warning small mt-2">
-                      <AlertCircle size={14} className="me-1" /> Logged as Late Check-in
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Punch Actions */}
-              {!isCheckedIn ? (
-                <div>
-                  <div className="mb-3 text-start">
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      placeholder="Optional check-in notes (e.g. Remote, On-site)..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    className="btn btn-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold"
-                    onClick={handleCheckIn}
-                    disabled={actionLoading}
-                  >
-                    <LogIn size={18} /> Check In for Today
-                  </button>
-                </div>
-              ) : !isCheckedOut ? (
-                <div>
-                  <div className="mb-3 text-start">
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      placeholder="Optional check-out summary notes..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    className="btn btn-warning w-100 py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold"
-                    onClick={handleCheckOut}
-                    disabled={actionLoading}
-                  >
-                    <LogOut size={18} /> Check Out for Today
-                  </button>
-                </div>
-              ) : (
-                <div className="alert alert-success py-2 px-3 small rounded-3 mb-0 d-flex align-items-center justify-content-center gap-2">
-                  <CheckCircle size={16} /> Workday completed. Both check-in and check-out recorded.
-                </div>
-              )}
-            </div>
+    <div className="employee-portal">
+      <header className="employee-header">
+        <strong>Employee Portal</strong>
+        <button type="button" onClick={handleLogout}>Logout</button>
+      </header>
+      <main className="employee-content">
+        <nav className="employee-tabs" aria-label="Employee portal">
+          {[
+            ['announcements', 'Announcements'],
+            ['leaves', 'Leaves'],
+            ['attendance', 'Attendance'],
+            ['profile', 'Profile'],
+          ].map(([key, label]) => (
+            <button
+              type="button"
+              className={tab === key ? 'active' : ''}
+              onClick={() => setTab(key)}
+              key={key}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        {feedback && <p className="employee-feedback" role="status">{feedback}</p>}
+        {tab === 'announcements' && (
+          <Announcements announcements={announcements} trainings={trainings} />
+        )}
+        {tab === 'leaves' && (
+          <div className="employee-stack">
+            <LeaveApply
+              value={leaveForm}
+              loading={loading}
+              onChange={setLeaveForm}
+              onSubmit={handleLeaveSubmit}
+            />
+            <LeaveList leaves={leaves} />
           </div>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div className="col-lg-6">
-          <div className="row g-3 h-100">
-            <div className="col-sm-6">
-              <StatCard
-                title="Monthly Attendance"
-                value={`${stats.monthlyAttendanceDays ?? 0} Days`}
-                subtitle="Present this month"
-                icon={CalendarCheck}
-                variant="primary"
-              />
-            </div>
-            <div className="col-sm-6">
-              <StatCard
-                title="Approved Leaves"
-                value={`${stats.approvedLeavesThisYear ?? 0} Days`}
-                subtitle="Approved this calendar year"
-                icon={CalendarOff}
-                variant="success"
-              />
-            </div>
-            <div className="col-sm-6">
-              <StatCard
-                title="Pending Leaves"
-                value={stats.pendingLeavesCount ?? 0}
-                subtitle="Under review"
-                icon={Clock}
-                variant="warning"
-              />
-            </div>
-            <div className="col-sm-6">
-              <StatCard
-                title="Upcoming Courses"
-                value={data?.upcomingTrainings?.length ?? 0}
-                subtitle="Catalog programs"
-                icon={GraduationCap}
-                variant="purple"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Leaves & Company Announcements */}
-      <div className="row g-4 mb-4">
-        {/* Recent Leave Requests */}
-        <div className="col-lg-6">
-          <div className="saas-card h-100">
-            <div className="saas-card-header">
-              <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                <CalendarOff size={18} className="text-primary" /> My Recent Leave Requests
-              </h6>
-              <Link to="/leaves" className="text-primary small text-decoration-none fw-semibold">
-                View All
-              </Link>
-            </div>
-            <div className="saas-card-body p-0">
-              {data?.recentLeaves?.length === 0 ? (
-                <div className="p-4 text-center text-muted small">No leave applications submitted yet.</div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-saas">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Dates</th>
-                        <th>Days</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data?.recentLeaves?.map((leave) => (
-                        <tr key={leave._id}>
-                          <td>
-                            <span className="badge badge-soft-info text-capitalize small">
-                              {leave.leaveType}
-                            </span>
-                          </td>
-                          <td className="small text-muted">
-                            {new Date(leave.startDate).toLocaleDateString()} -{' '}
-                            {new Date(leave.endDate).toLocaleDateString()}
-                          </td>
-                          <td className="small fw-semibold">{leave.daysCount}d</td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                leave.status === 'approved'
-                                  ? 'badge-soft-success'
-                                  : leave.status === 'rejected'
-                                  ? 'badge-soft-danger'
-                                  : 'badge-soft-warning'
-                              } text-capitalize`}
-                            >
-                              {leave.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Company Announcements */}
-        <div className="col-lg-6">
-          <div className="saas-card h-100">
-            <div className="saas-card-header">
-              <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                <Megaphone size={18} className="text-primary" /> Company Announcements
-              </h6>
-              <Link to="/announcements" className="text-primary small text-decoration-none fw-semibold">
-                All Announcements
-              </Link>
-            </div>
-            <div className="saas-card-body">
-              {data?.activeAnnouncements?.length === 0 ? (
-                <EmptyState description="No announcements at this time." />
-              ) : (
-                <div className="d-flex flex-column gap-3">
-                  {data?.activeAnnouncements?.map((a) => (
-                    <div key={a._id} className="p-3 border rounded-3 bg-light">
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="badge badge-soft-primary small text-uppercase" style={{ fontSize: '0.65rem' }}>
-                          {a.priority}
-                        </span>
-                        <span className="text-muted small">{new Date(a.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <h6 className="fw-bold text-dark mb-1">{a.title}</h6>
-                      <p className="text-muted small mb-0">{a.content}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+        )}
+        {tab === 'attendance' && (
+          <Attendance
+            records={attendance}
+            today={todayAttendance}
+            loading={loading}
+            onAttendance={handleAttendance}
+          />
+        )}
+        {tab === 'profile' && (
+          <section className="employee-panel employee-profile">
+            <h2>My Profile</h2>
+            <p><span>Name:</span> {user?.name || '—'}</p>
+            <p><span>Email:</span> {user?.email || '—'}</p>
+            <p><span>Role:</span> {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—'}</p>
+            {profile?.department && <p><span>Department:</span> {profile.department}</p>}
+            {profile?.designation && <p><span>Designation:</span> {profile.designation}</p>}
+          </section>
+        )}
+      </main>
     </div>
   );
 };
