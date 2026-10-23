@@ -19,6 +19,10 @@ const registerValidation = [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
+  body('role')
+    .optional()
+    .isIn(['employee', 'manager', 'hr'])
+    .withMessage('Role must be employee, manager, or hr'),
   validate,
 ];
 

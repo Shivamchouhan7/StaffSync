@@ -10,7 +10,6 @@ const Attendance = require('../models/Attendance');
 const Leave = require('../models/Leave');
 const Announcement = require('../models/Announcement');
 const Training = require('../models/Training');
-const Performance = require('../models/Performance');
 const Notification = require('../models/Notification');
 
 const seedData = async () => {
@@ -33,7 +32,6 @@ const seedData = async () => {
       Leave.deleteMany({}),
       Announcement.deleteMany({}),
       Training.deleteMany({}),
-      Performance.deleteMany({}),
       Notification.deleteMany({}),
     ]);
     console.log('[Seed] Cleared existing data.');
@@ -370,37 +368,7 @@ const seedData = async () => {
 
     console.log('[Seed] Created Trainings.');
 
-    // 8. Create Performance Records
-    await Performance.create([
-      {
-        user: empUser1._id,
-        reviewer: managerUser._id,
-        reviewPeriod: 'Q4 2025',
-        rating: 4.8,
-        feedback:
-          'Alex demonstrated exemplary technical leadership during the migration to Vite and React 19. Code quality is consistently high and mentorship of junior engineers is noteworthy.',
-        goalsMet: 5,
-        totalGoals: 5,
-        keyAchievements: ['Zero-downtime release of core microservices', 'Refactored auth token interceptors'],
-        areasOfImprovement: ['Lead more design documentation sessions'],
-      },
-      {
-        user: empUser2._id,
-        reviewer: managerUser._id,
-        reviewPeriod: 'Q4 2025',
-        rating: 4.5,
-        feedback:
-          'Priya has excelled in cloud infrastructure automation, reducing deployment friction and improving build pipeline speed.',
-        goalsMet: 4,
-        totalGoals: 5,
-        keyAchievements: ['Automated database backup pipelines', 'Optimized container image sizing'],
-        areasOfImprovement: ['Cross-team feature documentation'],
-      },
-    ]);
-
-    console.log('[Seed] Created Performance records.');
-
-    // 9. Create Notifications
+    // 8. Create Notifications
     await Notification.create([
       {
         recipient: empUser1._id,

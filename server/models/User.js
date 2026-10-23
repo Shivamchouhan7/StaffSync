@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
       default: 'employee',
       index: true,
     },
+    department: {type: String},
     isActive: {
       type: Boolean,
       default: true,
@@ -62,10 +63,11 @@ const userSchema = new mongoose.Schema(
 // Hash password before saving
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
-    return;
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Compare password helper

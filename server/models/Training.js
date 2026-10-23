@@ -26,7 +26,13 @@ const trainingSchema = new mongoose.Schema(
     trainer: {
       type: String,
       required: [true, 'Trainer name is required'],
+      default: 'TBD',
       trim: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
     startDate: {
       type: Date,

@@ -22,7 +22,15 @@ const generateEmployeeId = async () => {
 // @access  Public
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, department = 'General', designation = 'Team Member', phone = '' } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role = 'employee',
+      department = 'General',
+      designation,
+      phone = '',
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -33,13 +41,11 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Public registration ALWAYS forces role: 'employee'
-    // Higher privileges (HR, Manager) cannot be created via public registration
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password,
-      role: 'employee',
+      role,
       isActive: true,
     });
 
@@ -49,15 +55,23 @@ const register = async (req, res, next) => {
       user: user._id,
       employeeId,
       department,
-      designation,
+      designation: designation || (role === 'hr' ? 'HR Administrator' : role === 'manager' ? 'Manager' : 'Team Member'),
       phone,
     });
+
+    let manager = null;
+    if (role === 'manager') {
+      manager = await Manager.create({
+        user: user._id,
+        department,
+      });
+    }
 
     const token = generateToken(user._id);
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful as Employee.',
+      message: `Registration successful as ${role === 'hr' ? 'HR' : role.charAt(0).toUpperCase() + role.slice(1)}.`,
       token,
       user: {
         _id: user._id,
@@ -72,6 +86,12 @@ const register = async (req, res, next) => {
         department: employee.department,
         designation: employee.designation,
       },
+      manager: manager
+        ? {
+            _id: manager._id,
+            department: manager.department,
+          }
+        : undefined,
     });
   } catch (error) {
     next(error);

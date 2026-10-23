@@ -9,7 +9,7 @@ const attendanceSchema = new mongoose.Schema(
       index: true,
     },
     date: {
-      type: String, // Stored as YYYY-MM-DD for date-based unique constraint
+      type: String, 
       required: true,
       index: true,
     },
@@ -22,7 +22,7 @@ const attendanceSchema = new mongoose.Schema(
       default: null,
     },
     workHours: {
-      type: Number, // Calculated in hours
+      type: Number, 
       default: 0,
     },
     status: {
@@ -30,10 +30,9 @@ const attendanceSchema = new mongoose.Schema(
       enum: ['present', 'late', 'half_day', 'absent'],
       default: 'present',
     },
-    notes: {
-      type: String,
-      trim: true,
-      default: '',
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {

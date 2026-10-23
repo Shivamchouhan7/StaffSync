@@ -1,3 +1,5 @@
+const dns = require('node:dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -19,8 +21,6 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const trainingRoutes = require('./routes/trainingRoutes');
-const performanceRoutes = require('./routes/performanceRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
@@ -84,8 +84,6 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/trainings', trainingRoutes);
-app.use('/api/performance', performanceRoutes);
-app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Catch 404 for undefined routes

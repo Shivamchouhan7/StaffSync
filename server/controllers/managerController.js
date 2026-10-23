@@ -45,7 +45,12 @@ const assignTeamMembers = async (req, res, next) => {
       });
     }
 
-    // Add employees to manager record teamMembers
+    // Keep the employee assigned to one manager at a time.
+    await Manager.updateMany(
+      { _id: { $ne: managerRecord._id }, teamMembers: { $in: employeeUserIds } },
+      { $pull: { teamMembers: { $in: employeeUserIds } } }
+    );
+
     managerRecord.teamMembers = Array.from(
       new Set([...managerRecord.teamMembers.map((id) => id.toString()), ...employeeUserIds])
     );

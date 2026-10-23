@@ -38,19 +38,14 @@ const leaveSchema = new mongoose.Schema(
       default: 'pending',
       index: true,
     },
-    reviewedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    reviewNotes: {
+    
+    approverRole: {
       type: String,
-      trim: true,
-      default: '',
+      enum: ['hr', 'manager']
     },
-    reviewDate: {
+    createdAt: {
       type: Date,
-      default: null,
+      default: Date.now
     },
   },
   {

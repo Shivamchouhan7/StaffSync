@@ -17,6 +17,21 @@ const employeeSchema = new mongoose.Schema(
       uppercase: true,
       index: true,
     },
+    name: {
+      type: String,
+      required: [true, 'Full name is required'],
+      trim: true,
+      maxlength: [100, 'Name cannot exceed 100 characters'],
+    },
+    email: {
+      type: String,
+      required: [true, 'Email address is required'],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email'],
+      index: true,
+    },
     department: {
       type: String,
       required: [true, 'Department is required'],
@@ -34,18 +49,18 @@ const employeeSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
-    phone: {
-      type: String,
-      trim: true,
-      default: '',
+    salary: {
+      type: Number,
+      default: 0,
     },
     joinDate: {
       type: Date,
       default: Date.now,
     },
-    salary: {
-      type: Number,
-      default: 0,
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
     },
     address: {
       street: { type: String, default: '' },
@@ -64,6 +79,10 @@ const employeeSchema = new mongoose.Schema(
       enum: ['active', 'inactive', 'on_leave', 'terminated'],
       default: 'active',
       index: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {

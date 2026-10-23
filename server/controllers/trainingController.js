@@ -113,11 +113,11 @@ const updateTraining = async (req, res, next) => {
       });
     }
 
-    // Only HR or original creator can update
-    if (req.user.role !== 'hr' && training.createdBy.toString() !== req.user._id.toString()) {
+    // HR and Managers can update training programs
+    if (req.user.role !== 'hr' && req.user.role !== 'manager') {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: You can only edit training programs that you created.',
+        message: 'Forbidden: Only HR and Managers can edit training programs.',
       });
     }
 
@@ -132,6 +132,20 @@ const updateTraining = async (req, res, next) => {
     if (endDate) training.endDate = new Date(endDate);
     if (capacity !== undefined) training.capacity = capacity;
     if (status) training.status = status;
+
+    if (Number.isNaN(training.startDate.getTime()) || Number.isNaN(training.endDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Training dates must be valid.',
+      });
+    }
+
+    if (training.endDate < training.startDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Training end date cannot be earlier than start date.',
+      });
+    }
 
     await training.save();
 
